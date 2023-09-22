@@ -622,6 +622,8 @@ struct AllPathsVisitor : public boost::default_dfs_visitor {
 };
 */
 
+
+
 const char* getColorName(boost::default_color_type color) {
     switch (color) {
         case boost::white_color: return "white";
@@ -630,6 +632,7 @@ const char* getColorName(boost::default_color_type color) {
         default: return "unknown";
     }
 }
+/*
 struct AllPathsVisitor : public boost::default_dfs_visitor {
     std::vector<Vertex> current_path_;
     Vertex destination_vertex;
@@ -672,8 +675,21 @@ struct AllPathsVisitor : public boost::default_dfs_visitor {
             std::cout << std::endl;
 
         }
-        //color_map_[u] = boost::white_color;
+        //color_map_[v] = boost::white_color;
     }
+
+    void back_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
+            Vertex v = target(e, g);
+            Vertex u = source(e, g);
+            std::cout << "Encountered a back edge from " << source(e, g) << " to " << v << std::endl; // Printing the back edge
+            //put(color_map_, v, boost::white_color);
+            //put(color_map_, u, boost::white_color);
+        }
+
+    void back_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
+            Vertex v = source(e, g);
+            color_map_[v] = boost::white_color;
+        }
 
     void finish_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
         //std::cout << "Finishing vertex: " << u << std::endl;
@@ -681,16 +697,205 @@ struct AllPathsVisitor : public boost::default_dfs_visitor {
 
             // Reset the destination vertex as unvisited
         //color_map_[u] = boost::white_color;
-            color_map_[destination_vertex] = boost::white_color;
+        put(color_map_, u, boost::white_color);
+
+            //color_map_[destination_vertex] = boost::white_color;
         if (!current_path_.empty()) {
             current_path_.pop_back();
         }
     }
 
+    void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
+            // Reset all vertices to gray after all out-edges from a vertex have been traversed
+
+            typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
+            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+                put(color_map_, *vi, boost::gray_color);
+                color_map_[destination_vertex] = boost::white_color;
+            }
+            std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
+
+			if (!current_path_.empty()) {
+					   current_path_.pop_back();
+				   }
+    }
+
+
+
     // Getter to retrieve all paths after DFS is complete
     const std::vector<std::vector<Vertex>>& getAllPaths() const {
         return all_paths_;
     }
+
+
+    void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
+        bool allBlack = true;
+
+        // Check if there's any vertex that's still white
+        typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
+        for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+            if (color_map_[*vi] == boost::white_color) {
+                allBlack = false;
+                break;
+            }
+        }
+
+        // If there's a white vertex, set the destination vertex back to white to restart the DFS
+        if (!allBlack) {
+            color_map_[destination_vertex] = boost::white_color;
+        } else {
+            // Reset all vertices to gray after all out-edges from a vertex have been traversed
+            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+                put(color_map_, *vi, boost::white_color);
+            }
+        }
+
+        std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
+
+        if (!current_path_.empty()) {
+            current_path_.pop_back();
+        }
+    }
+
+};
+*/
+
+
+struct AllPathsVisitor : public boost::default_dfs_visitor {
+	std::vector<Vertex> current_path_;
+	    std::map<Vertex, int> current_path_count_; // Store visit counts for each vertex
+	    std::vector<std::vector<Vertex>> all_paths_; // Store all paths
+
+	    Vertex start_vertex_;
+	    Vertex destination_vertex;
+	    boost::default_color_type* color_map_; // Color map to manage the visited status of the vertices
+
+	    AllPathsVisitor(Vertex start, Vertex destination, boost::default_color_type* color_map)
+	        : start_vertex_(start), destination_vertex(destination), color_map_(color_map) {
+	        current_path_.push_back(start_vertex_);
+	        current_path_count_[start_vertex_] = 1; // Initialize count for starting vertex to 1
+	    }
+
+	    void discover_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
+	        if (!current_path_.empty()) {
+	            if (!boost::edge(current_path_.back(), u, g).second) {
+	                return;
+	            }
+	        } else if (u != start_vertex_) {
+	            return;
+	        }
+
+	        if (current_path_count_[u] < 3) { // Only allow up to 3 visits
+	            current_path_.push_back(u);
+	            current_path_count_[u]++;  // Increment visit count
+	            std::cout << "Discovering vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
+	        }
+
+	        // Reset the color to allow revisiting
+	        put(color_map_, u, boost::white_color);
+
+	    }
+
+    void examine_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
+        Vertex u = source(e, g);
+        Vertex v = target(e, g);
+        std::cout << "Examining edge: " << u << " -> " << v << std::endl;
+        std::cout << "Vertex " << u << " color: " << getColorName(color_map_[u]) << std::endl;
+        std::cout << "Vertex " << v << " color: " << getColorName(color_map_[v]) << std::endl;
+
+    }
+
+    void tree_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
+        Vertex v = target(e, g);
+        Vertex u = source(e, g);
+        bool edgeExists = boost::edge(u, v, g).second;
+        if (!edgeExists) {
+            return;  // Invalid transition
+        }
+        if (v == destination_vertex) {
+            all_paths_.push_back(current_path_);
+            std::cout << "Path: ";
+            for (Vertex vertex : current_path_) {
+                std::cout << vertex << "->";
+            }
+            std::cout << v << std::endl;
+        }
+    }
+
+    void back_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
+        Vertex v = target(e, g);
+        Vertex u = source(e, g);
+        if (!boost::edge(u, v, g).second) {
+            std::cout << "Invalid transition from " << u << " to " << v << std::endl;
+            return;  // Skip the invalid transition.
+        }
+        std::cout << "Encountered a back edge from " << u << " to " << v << std::endl;
+    }
+
+    void finish_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
+            if (current_path_count_[u] > 0) {
+                put(color_map_, u, boost::white_color);
+                current_path_count_[u]--; // Decrement visit count
+            }
+            if (!current_path_.empty()) {
+                current_path_.pop_back();
+            }
+        }
+
+
+
+    /*void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
+            // Reset all vertices to gray after all out-edges from a vertex have been traversed
+
+            typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
+            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+                put(color_map_, *vi, boost::gray_color);
+                color_map_[destination_vertex] = boost::white_color;
+            }
+            std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
+
+			if (!current_path_.empty()) {
+					   current_path_.pop_back();
+				   }
+    }
+
+
+
+    // Getter to retrieve all paths after DFS is complete
+    const std::vector<std::vector<Vertex>>& getAllPaths() const {
+        return all_paths_;
+    }*/
+
+
+   /* void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
+        bool allBlack = true;
+
+        // Check if there's any vertex that's still white
+        typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
+        for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+            if (color_map_[*vi] == boost::white_color) {
+                allBlack = false;
+                break;
+            }
+        }
+
+        // If there's a white vertex, set the destination vertex back to white to restart the DFS
+        if (!allBlack) {
+            color_map_[destination_vertex] = boost::white_color;
+        } else {
+            // Reset all vertices to gray after all out-edges from a vertex have been traversed
+            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
+                put(color_map_, *vi, boost::white_color);
+            }
+        }
+
+        std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
+
+        if (!current_path_.empty()) {
+            current_path_.pop_back();
+        }
+    }*/
+
 };
 
 
@@ -928,7 +1133,8 @@ void hybrid_automata::bglDFSpaths(BoostAdjacencyMatrix adjacencyMatrix, Vertex s
     //std::vector<boost::default_color_type> color_map(boost::num_vertices(adjacencyMatrix));
 
     std::vector<boost::default_color_type> color_map(boost::num_vertices(adjacencyMatrix), boost::white_color);
-    AllPathsVisitor visitor(end, &color_map[0]);
+    //AllPathsVisitor visitor(end, &color_map[0]);
+    AllPathsVisitor visitor(start, end, &color_map[0]);
     boost::depth_first_search(adjacencyMatrix, boost::visitor(visitor).root_vertex(start).color_map(&color_map[0]));
 
 
@@ -937,14 +1143,14 @@ void hybrid_automata::bglDFSpaths(BoostAdjacencyMatrix adjacencyMatrix, Vertex s
         boost::visitor(visitor).root_vertex(start).color_map(&color_map[0])
     );*/
 
-    const auto& allPaths = visitor.getAllPaths();
+   /* const auto& allPaths = visitor.getAllPaths();
     std::cout << "All paths from " << start << " to " << end << ":" << std::endl;
     for (const auto& path : allPaths) {
         for (Vertex v : path) {
             std::cout << v << " -> ";
         }
         std::cout << end << std::endl;
-    }
+    }*/
 /*
 
     math::matrix<int> adjMat = getReverseGraph(hybrid_automata::getGraph());
