@@ -774,10 +774,11 @@ public:
 
 	    AllPathsVisitor(Vertex start, Vertex destination, boost::default_color_type* color_map, int max_depth)
 	        : start_vertex_(start), destination_vertex(destination), color_map_(color_map), max_depth(max_depth) {
-	        current_path_.push_back(start_vertex_);
-	        current_path_count_[start_vertex_] = 1;
+//	        current_path_.push_back(start_vertex_);
+//	        current_path_count_[start_vertex_] = 1;
 	    }
 	    void discover_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
+
 	        if (!current_path_.empty()) {
 	            if (!boost::edge(current_path_.back(), u, g).second) {
 	                return;  // If there's no valid transition from the last vertex in current path to this vertex
@@ -800,7 +801,8 @@ public:
 //	            return;
 //	        }
 
-	        if (current_path_.size() > max_depth) { // Repetition limit as necessary
+
+	    	if (current_path_.size() > max_depth) { // Repetition limit as necessary
 				return;
 			}
 
@@ -820,24 +822,24 @@ public:
     }
 
     void tree_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
-            Vertex v = target(e, g);
-            Vertex u = source(e, g);
+		Vertex v = target(e, g);
+		Vertex u = source(e, g);
 
-            if (v == destination_vertex && current_path_.size() + 1 <= max_depth) {
+		if (v == destination_vertex && current_path_.size() + 1 <= max_depth) {
 
 //            if (v == destination_vertex) {
-                bool inserted;
-                tie(std::ignore, inserted) = all_paths_set_.insert(current_path_);  // Try inserting the path. The 'inserted' will be false if the path was already present.
-                if (inserted) {
-                	path_no++;
-                    std::cout << "Unique Path: "<<path_no<<" ";
-                    for (Vertex vertex : current_path_) {
-                        std::cout << vertex << "->";
-                    }
-                    std::cout << v << std::endl;
-                }
-            }
-        }
+			bool inserted;
+			tie(std::ignore, inserted) = all_paths_set_.insert(current_path_);  // Try inserting the path. The 'inserted' will be false if the path was already present.
+			if (inserted) {
+				path_no++;
+				std::cout << "Unique Path: "<<path_no<<" ";
+				for (Vertex vertex : current_path_) {
+					std::cout << vertex << "->";
+				}
+				std::cout << v << std::endl;
+			}
+		}
+	}
 
     void back_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
         Vertex v = target(e, g);
@@ -846,18 +848,21 @@ public:
 //            std::cout << "Invalid transition from " << u << " to " << v << std::endl;
             return;  // Skip the invalid transition.
         }
+
+        // Encounter a back edge indicating a cycle. Reset the target vertex color to allow revisiting.
+	   //put(color_map_, v, boost::white_color);
 //        std::cout << "Encountered a back edge from " << u << " to " << v << std::endl;
     }
 
     void finish_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
-            if (current_path_count_[u] > 0) {
-                put(color_map_, u, boost::white_color);
-                current_path_count_[u]--; // Decrement visit count
-            }
-            if (!current_path_.empty()) {
-                current_path_.pop_back();
-            }
-        }
+		if (current_path_count_[u] > 0) {
+			put(color_map_, u, boost::white_color);
+			current_path_count_[u]--; // Decrement visit count
+		}
+		if (!current_path_.empty()) {
+			current_path_.pop_back();
+		}
+	}
 
     const std::set<std::vector<Vertex>>& getAllPaths() const {
            return all_paths_set_;
@@ -879,4 +884,3 @@ void hybrid_automata::bglDFSpaths(BoostAdjacencyMatrix adjacencyMatrix, Vertex s
     AllPathsVisitor visitor(start, end, &color_map[0], max_depth);
         boost::depth_first_search(adjacencyMatrix, boost::visitor(visitor).root_vertex(start).color_map(&color_map[0]));
 }
-
