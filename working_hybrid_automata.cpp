@@ -762,369 +762,116 @@ struct AllPathsVisitor : public boost::default_dfs_visitor {
 
 
 struct AllPathsVisitor : public boost::default_dfs_visitor {
-	std::vector<Vertex> current_path_;
+		std::vector<Vertex> current_path_;
 	    std::map<Vertex, int> current_path_count_; // Store visit counts for each vertex
-	    std::vector<std::vector<Vertex>> all_paths_; // Store all paths
-
+public:
+   std::set<std::vector<Vertex>> all_paths_set_; // Use a set to store unique paths
 	    Vertex start_vertex_;
 	    Vertex destination_vertex;
 	    boost::default_color_type* color_map_; // Color map to manage the visited status of the vertices
+	    int max_depth;
+	    int path_no = 0;
 
-	    AllPathsVisitor(Vertex start, Vertex destination, boost::default_color_type* color_map)
-	        : start_vertex_(start), destination_vertex(destination), color_map_(color_map) {
-	        current_path_.push_back(start_vertex_);
-	        current_path_count_[start_vertex_] = 1; // Initialize count for starting vertex to 1
+	    AllPathsVisitor(Vertex start, Vertex destination, boost::default_color_type* color_map, int max_depth)
+	        : start_vertex_(start), destination_vertex(destination), color_map_(color_map), max_depth(max_depth) {
+//	        current_path_.push_back(start_vertex_);
+//	        current_path_count_[start_vertex_] = 1;
 	    }
-
 	    void discover_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
+
 	        if (!current_path_.empty()) {
 	            if (!boost::edge(current_path_.back(), u, g).second) {
-	                return;
+	                return;  // If there's no valid transition from the last vertex in current path to this vertex
 	            }
 	        } else if (u != start_vertex_) {
-	            return;
+	            return;  // Only paths starting from the desired starting vertex
 	        }
 
-	        if (current_path_count_[u] < 3) { // Only allow up to 3 visits
-	            current_path_.push_back(u);
-	            current_path_count_[u]++;  // Increment visit count
-	            std::cout << "Discovering vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
-	        }
+	        // Add vertex to current path and update its visit count
+	        current_path_.push_back(u);
+	        current_path_count_[u]++;
 
-	        // Reset the color to allow revisiting
+
+//	        if (current_path_.size() > max_depth || current_path_count_[u] > 1) { // Repetition limit as necessary
+//				return;
+//			}
+
+	        // Logic to check if a vertex has been visited too many times
+//	        if (current_path_count_[u] > 1 || current_path_.size() > max_depth) { // Repetition limit as necessary
+//	            return;
+//	        }
+
+
+	    	if (current_path_.size() > max_depth) { // Repetition limit as necessary
+				return;
+			}
+
+	        // Reset the vertex to allow for its repetition in cycles
 	        put(color_map_, u, boost::white_color);
 
+//	        std::cout << "Discovering vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
 	    }
 
     void examine_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
         Vertex u = source(e, g);
         Vertex v = target(e, g);
-        std::cout << "Examining edge: " << u << " -> " << v << std::endl;
-        std::cout << "Vertex " << u << " color: " << getColorName(color_map_[u]) << std::endl;
-        std::cout << "Vertex " << v << " color: " << getColorName(color_map_[v]) << std::endl;
+//        std::cout << "Examining edge: " << u << " -> " << v << std::endl;
+//        std::cout << "Vertex " << u << " color: " << getColorName(color_map_[u]) << std::endl;
+//        std::cout << "Vertex " << v << " color: " << getColorName(color_map_[v]) << std::endl;
 
     }
 
     void tree_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
-        Vertex v = target(e, g);
-        Vertex u = source(e, g);
-        bool edgeExists = boost::edge(u, v, g).second;
-        if (!edgeExists) {
-            return;  // Invalid transition
-        }
-        if (v == destination_vertex) {
-            all_paths_.push_back(current_path_);
-            std::cout << "Path: ";
-            for (Vertex vertex : current_path_) {
-                std::cout << vertex << "->";
-            }
-            std::cout << v << std::endl;
-        }
-    }
+		Vertex v = target(e, g);
+		Vertex u = source(e, g);
+
+		if (v == destination_vertex && current_path_.size() + 1 <= max_depth) {
+
+//            if (v == destination_vertex) {
+			bool inserted;
+			tie(std::ignore, inserted) = all_paths_set_.insert(current_path_);  // Try inserting the path. The 'inserted' will be false if the path was already present.
+			if (inserted) {
+				path_no++;
+				std::cout << "Unique Path: "<<path_no<<" ";
+				for (Vertex vertex : current_path_) {
+					std::cout << vertex << "->";
+				}
+				std::cout << v << std::endl;
+			}
+		}
+	}
 
     void back_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
         Vertex v = target(e, g);
         Vertex u = source(e, g);
         if (!boost::edge(u, v, g).second) {
-            std::cout << "Invalid transition from " << u << " to " << v << std::endl;
+//            std::cout << "Invalid transition from " << u << " to " << v << std::endl;
             return;  // Skip the invalid transition.
         }
-        std::cout << "Encountered a back edge from " << u << " to " << v << std::endl;
+
+        // Encounter a back edge indicating a cycle. Reset the target vertex color to allow revisiting.
+	   //put(color_map_, v, boost::white_color);
+//        std::cout << "Encountered a back edge from " << u << " to " << v << std::endl;
     }
 
     void finish_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
-            if (current_path_count_[u] > 0) {
-                put(color_map_, u, boost::white_color);
-                current_path_count_[u]--; // Decrement visit count
-            }
-            if (!current_path_.empty()) {
-                current_path_.pop_back();
-            }
-        }
+		if (current_path_count_[u] > 0) {
+			put(color_map_, u, boost::white_color);
+			current_path_count_[u]--; // Decrement visit count
+		}
+		if (!current_path_.empty()) {
+			current_path_.pop_back();
+		}
+	}
 
-
-
-    /*void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
-            // Reset all vertices to gray after all out-edges from a vertex have been traversed
-
-            typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
-            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
-                put(color_map_, *vi, boost::gray_color);
-                color_map_[destination_vertex] = boost::white_color;
-            }
-            std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
-
-			if (!current_path_.empty()) {
-					   current_path_.pop_back();
-				   }
-    }
-
-
-
-    // Getter to retrieve all paths after DFS is complete
-    const std::vector<std::vector<Vertex>>& getAllPaths() const {
-        return all_paths_;
-    }*/
-
-
-   /* void finish_vertex(const Vertex& u, const BoostAdjacencyMatrix& g) {
-        bool allBlack = true;
-
-        // Check if there's any vertex that's still white
-        typename boost::graph_traits<BoostAdjacencyMatrix>::vertex_iterator vi, vi_end;
-        for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
-            if (color_map_[*vi] == boost::white_color) {
-                allBlack = false;
-                break;
-            }
-        }
-
-        // If there's a white vertex, set the destination vertex back to white to restart the DFS
-        if (!allBlack) {
-            color_map_[destination_vertex] = boost::white_color;
-        } else {
-            // Reset all vertices to gray after all out-edges from a vertex have been traversed
-            for(boost::tie(vi, vi_end) = vertices(g); vi != vi_end; ++vi) {
-                put(color_map_, *vi, boost::white_color);
-            }
-        }
-
-        std::cout << "Finishing vertex: " << u << " with color: " << getColorName(color_map_[u]) << std::endl;
-
-        if (!current_path_.empty()) {
-            current_path_.pop_back();
-        }
-    }*/
-
+    const std::set<std::vector<Vertex>>& getAllPaths() const {
+           return all_paths_set_;
+       }
 };
-
-
-/*
-class AllPathsVisitor : public boost::default_dfs_visitor {
-
-public:
-    AllPathsVisitor(Vertex tgt) : target(tgt), color_map(nullptr) {}
-
-    template <typename Vertex, typename Graph>
-    void discover_vertex(Vertex u, const Graph& g) {
-        current_path.push_back(u);
-    }
-
-    template <typename Vertex, typename Graph>
-    void finish_vertex(Vertex u, const Graph& g) {
-        if (u == target) {
-            all_paths.push_back(current_path);
-        }
-
-        current_path.pop_back();
-
-        // Delay turning vertex to black by doing it here
-        // Only if all outgoing edges have been explored
-        bool all_out_edges_explored = true;
-        typename boost::graph_traits<Graph>::out_edge_iterator ei, e_end;
-        for (tie(ei, e_end) = boost::out_edges(u, g); ei != e_end; ++ei) {
-            Vertex v = boost::target(*ei, g);
-            if (color_map[v] == boost::gray_color) {
-                all_out_edges_explored = false;
-                break;
-            }
-        }
-
-        if (color_map && all_out_edges_explored) {
-            (*color_map)[u] = boost::black_color;
-        }
-
-    }
-
-    const std::vector<std::vector<Vertex>>& getAllPaths() const {
-        return all_paths;
-    }
-
-    void set_color_map(std::vector<boost::default_color_type>& colors) {
-        color_map = &colors;
-    }
-
-private:
-    Vertex target;
-    std::vector<Vertex> current_path;
-    std::vector<std::vector<Vertex>> all_paths;
-    std::vector<boost::default_color_type>* color_map;
-};
-*/
 
 
 
 typedef boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor Edge;
-
-/*class PathNumDFSVisitor : public boost::default_dfs_visitor {
-public:
-    PathNumDFSVisitor(boost::unordered_map<std::string, std::size_t>& inMap, std::size_t depthLimit)
-        : pathNumMap(inMap), max_depth(depthLimit) {}
-
-    template <typename Vertex, typename Graph>
-    void discover_vertex(Vertex u, const Graph& g) {
-        current_depth++;
-    }
-
-    template <typename Vertex, typename Graph>
-    void finish_vertex(Vertex u, const Graph& g) {
-        std::string term = g[u].termId;
-
-        if (boost::out_degree(u, g) == 0) {
-            pathNumMap[term] = 1;
-        } else {
-            pathNumMap[term] = 0;
-            typename boost::graph_traits<Graph>::out_edge_iterator ei, e_end;
-            for (tie(ei, e_end) = boost::out_edges(u, g); ei != e_end; ++ei) {
-                Vertex v = boost::target(*ei, g);
-
-                if (current_depth < max_depth) {
-                    std::string childTermId = g[v].termId;
-                    pathNumMap[term] += pathNumMap[childTermId];
-                }
-            }
-        }
-        current_depth--;
-    }
-
-private:
-    boost::unordered_map<std::string, std::size_t>& pathNumMap;
-    std::size_t current_depth = 0;
-    const std::size_t max_depth;
-};
-
-struct VertexProperties {
-    std::string termId;
-};*/
-
-//typedef boost::adjacency_matrix<boost::directedS, VertexProperties> Graph;
-
-
-/*
-class CyclicPathsDFSVisitor : public boost::default_dfs_visitor {
-public:
-    CyclicPathsDFSVisitor(boost::unordered_map<std::string, std::size_t>& inMap)
-        : pathNumMap(inMap) {}
-
-    template <typename Vertex, typename Graph>
-    void discover_vertex(Vertex u, const Graph& g) {
-        path.push_back(u);
-        vertices_in_path.insert(u);
-    }
-
-    template <typename Edge, typename Graph>
-    void back_edge(Edge e, const Graph& g) {
-        Vertex source_vertex = boost::source(e, g);
-        Vertex target_vertex = boost::target(e, g);
-
-        if (vertices_in_path.find(target_vertex) != vertices_in_path.end()) {
-            // Cycle detected
-            std::string cycle;
-            bool recording = false;
-
-            for (const auto& v : path) {
-                if (v == target_vertex || v == source_vertex) {
-                    recording = !recording; // toggle recording
-                }
-
-                if (recording) {
-                    cycle += std::to_string(v) + "->";
-                }
-            }
-            cycle += std::to_string(source_vertex);
-            pathNumMap[cycle]++;
-        }
-    }
-    void back_edge(Edge e, const Graph& g) {
-        Vertex source_vertex = boost::source(e, g);
-        Vertex target_vertex = boost::target(e, g);
-
-        if (vertices_in_path.find(target_vertex) != vertices_in_path.end()) {
-            // Cycle detected
-            std::string cycle;
-            bool recording = false;
-
-            for (const auto& v : path) {
-                if (v == target_vertex || v == source_vertex) {
-                    recording = !recording; // toggle recording
-                }
-
-                if (recording) {
-                    cycle += std::to_string(v) + "->";
-                }
-            }
-            cycle += std::to_string(source_vertex);
-
-            // Print the cycle
-            std::cout << "Detected Cycle: " << cycle << std::endl;
-
-            pathNumMap[cycle]++;
-        }
-    }
-
-    template <typename Vertex, typename Graph>
-    void finish_vertex(Vertex u, const Graph& g) {
-        path.pop_back();
-        vertices_in_path.erase(u);
-    }
-
-private:
-    boost::unordered_map<std::string, std::size_t>& pathNumMap;
-    std::vector<Vertex> path;
-    std::set<Vertex> vertices_in_path;
-};
-*/
-class ReversedPathNumDFSVisitor : public boost::default_dfs_visitor {
-
-public:
-    ReversedPathNumDFSVisitor(boost::unordered_map<Vertex, std::size_t>& inMap) : pathNumMap(inMap) {}
-
-    template <typename Vertex, typename BoostAdjacencyMatrix>
-    void finish_vertex(Vertex u, const BoostAdjacencyMatrix& g) {
-
-        // Check the in_degree (number of incoming edges) instead of out_degree
-        if (boost::in_degree(u, g) == 0) {
-            pathNumMap[u] = 1;
-        } else {
-            pathNumMap[u] = 0;
-            // Iterate over the parents of the term, instead of the children
-            typename boost::graph_traits<BoostAdjacencyMatrix>::in_edge_iterator ei, e_end;
-            for (tie(ei, e_end) = boost::in_edges(u, g); ei != e_end; ++ei) {
-
-                Vertex v = boost::source(*ei, g);
-                pathNumMap[u] += pathNumMap[v];
-            }
-        }
-    }
-
-private:
-    boost::unordered_map<Vertex, std::size_t>& pathNumMap;
-};
-
-math::matrix<int> hybrid_automata::getReverseGraph(const math::matrix<int>& originalMatrix) {
-    int rows = originalMatrix.size1();  // assuming size1() gives number of rows
-    int cols = originalMatrix.size2();  // assuming size2() gives number of columns
-
-    // Create an empty matrix of dimensions reversed from the original matrix
-    math::matrix<int> transposedMatrix(cols, rows, 0);
-
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            transposedMatrix(j, i) = originalMatrix(i, j);
-        }
-    }
-
-    return transposedMatrix;
-}
-
-
-void printPathNumMap(const boost::unordered_map<Vertex, std::size_t>& inMap) {
-    std::cout << "Vertex: Number of Paths" << std::endl;
-    std::cout << "-----------------------" << std::endl;
-    for (const auto& pair : inMap) {
-        std::cout << pair.first << ": " << pair.second << std::endl;
-    }
-}
 
 void hybrid_automata::bglDFSpaths(BoostAdjacencyMatrix adjacencyMatrix, Vertex start, Vertex end, int max_depth) {
     //AllPathsVisitor visitor(end);
@@ -1134,34 +881,6 @@ void hybrid_automata::bglDFSpaths(BoostAdjacencyMatrix adjacencyMatrix, Vertex s
 
     std::vector<boost::default_color_type> color_map(boost::num_vertices(adjacencyMatrix), boost::white_color);
     //AllPathsVisitor visitor(end, &color_map[0]);
-    AllPathsVisitor visitor(start, end, &color_map[0]);
-    boost::depth_first_search(adjacencyMatrix, boost::visitor(visitor).root_vertex(start).color_map(&color_map[0]));
-
-
-    /*boost::depth_first_search(
-        adjacencyMatrix,
-        boost::visitor(visitor).root_vertex(start).color_map(&color_map[0])
-    );*/
-
-   /* const auto& allPaths = visitor.getAllPaths();
-    std::cout << "All paths from " << start << " to " << end << ":" << std::endl;
-    for (const auto& path : allPaths) {
-        for (Vertex v : path) {
-            std::cout << v << " -> ";
-        }
-        std::cout << end << std::endl;
-    }*/
-/*
-
-    math::matrix<int> adjMat = getReverseGraph(hybrid_automata::getGraph());
-    BoostAdjacencyMatrix mat = hybrid_automata::bglGraph(adjMat);
-
-    boost::unordered_map<Vertex, std::size_t> inMap;  // Fixed declaration here
-        ReversedPathNumDFSVisitor visitor_num(inMap);
-
-        boost::depth_first_search(mat, boost::visitor(visitor_num));
-
-        printPathNumMap(inMap);
-*/
-
+    AllPathsVisitor visitor(start, end, &color_map[0], max_depth);
+        boost::depth_first_search(adjacencyMatrix, boost::visitor(visitor).root_vertex(start).color_map(&color_map[0]));
 }
