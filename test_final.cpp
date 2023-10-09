@@ -792,6 +792,10 @@ public:
 	        current_path_.push_back(u);
 	        current_path_count_[u]++;
 
+			for (Vertex vertex : current_path_) {
+					std::cout << vertex ;
+				}
+			std::cout<<std::endl;
 
 //	        if (current_path_.size() > max_depth || current_path_count_[u] > 1) { // Repetition limit as necessary
 //				return;
@@ -817,16 +821,12 @@ public:
 	       			std::cout << getColorName(color_map_[i]) << " ";
 	       		}
 	       		std::cout<<std::endl;
-	       		for (Vertex vertex : current_path_) {
-	       		        std::cout << vertex ;
-	       		    }
-	       		std::cout<<std::endl;
 	    }
 
     void examine_edge(const boost::graph_traits<BoostAdjacencyMatrix>::edge_descriptor& e, const BoostAdjacencyMatrix& g) {
         Vertex u = source(e, g);
         Vertex v = target(e, g);
-//        std::cout << "Examining edge: " << u << " -> " << v << std::endl;
+        std::cout << "Examining edge: " << u << " -> " << v << std::endl;
 //        std::cout << "Vertex " << u << " color: " << getColorName(color_map_[u]) << std::endl;
 //        std::cout << "Vertex " << v << " color: " << getColorName(color_map_[v]) << std::endl;
 
